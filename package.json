@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-frp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A collection of FRP nodes for Node-RED",
   "main": "frp-map.js",
   "dependencies": {},
@@ -9,19 +9,28 @@
     "type": "git",
     "url": "git+https://github.com/rxmend/NR-FRP.git"
   },
-  "keywords": [ "node-red", "frp" ],
+  "keywords": [
+    "node-red",
+    "frp",
+	"map",
+	"filter",
+	"scan",
+	"combine",
+	"combineAsArray",
+	"combineWith"
+  ],
   "author": {
     "name": "Xen Santos",
     "email": "rxmend@gmail.com"
   },
   "license": "ISC",
   "node-red": {
-    "nodes":{
+    "nodes": {
       "frp-map": "frp-map.js",
       "frp-filter": "frp-filter.js",
       "frp-scan": "frp-scan.js",
-      "frp-combineWith" : "frp-combineWith.js",
-      "frp-combineAsArray" : "frp-combineAsArray.js"
+      "frp-combineWith": "frp-combineWith.js",
+      "frp-combineAsArray": "frp-combineAsArray.js"
     }
   }
 }
