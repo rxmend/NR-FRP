@@ -1,0 +1,187 @@
+<script type="text/x-red" data-template-name="frp-combineWith">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name </label>
+        <input type="text" id="node-input-name" data-i18n="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="fa fa-server"></i> Topic </label>
+        <input type="text" id="node-input-topic" data-i18n="Topic">
+    </div>
+    <div class="form-row node-input-input-container-row">
+        <label for="node-input-input-container" style="width: 400px"><i class="fa fa-code"></i> Input Topics </label>
+        <ol id="node-input-input-container"></ol>
+    </div>
+    <div class="form-row" style="margin-bottom: 0px;">
+            <label for="node-input-func" style="width: 400px"><i class="fa fa-code"></i> Aggregator Function </label>
+            <input type="hidden" id="node-input-func" autofocus="autofocus">
+            <input type="hidden" id="node-input-noerr">
+    </div>
+    <div class="form-row node-text-editor-row">
+        <div style="min-height:100px;" class="node-text-editor" id="node-input-func-editor" ></div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-outputs"><i class="fa fa-random"></i> Outputs </label>
+        <input id="node-input-outputs" style="width: 60px;" value="1">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="frp-combineWith">
+    <p> This node combines the <code>msg.payload</code>'s of its inputs into an array and outputs it.</p>
+    
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>input topics<span class="property-type">various</span><dt>
+        <dd>A list containing the topics of the input nodes that can be reordered.</dd>
+        <dt>payload1, payload2...<span class="property-type">various</span><dt>
+        <dd>Data contained in the <code>msg.payload</code>'s of the input nodes. Their order should be the same as that of <code>input topics</code> </dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">various</span><dt>
+        <dd>Contains the result of aggregating data from the different inputs.</dd>
+        <dt>topic<span class="property-type">string</span><dt>
+        <dd>A mandatory property used to identify the origin of a message. This is used by the combine nodes to process multiple inputs, and should not contain spaces or periods.</dd>
+    </dl>
+
+    <h3>Aggregator Function</h3>
+    <p> <code>frp-combineWith</code> requires you to define the body of the internal <code>aggregateFunction</code>. Naming the function is not necessary as it is already defined internally. </p>
+    <p> The aggregator function must have as many parameters as there are input topics, and must observe the correct order. It must also return a value for it to work properly. </p>
+    <p> <b>Note: </b> Internal functions can be declared as <a href="https://developer.mozilla.org/en-US/docs/web/JavaScript/Reference/Operators/function">function expressions</a>. </p>
+    
+    <h3>Details</h3>
+    <p> Since messages from different inputs can be asynchronous and can come at different times, this node obtains data from every message and stores it, simply uses the saved values whenever it needs to output a result. </p>
+    <p> For example, if node 1 passes a number every second (say <code> 1, 2, 3... </code>), and node 2 only outputs a number every two seconds (meaning it outputs <code> 1, nothing, 2, nothing, 3...</code>), <code>frp-combineWith</code> will output: <code>aggregateFunction(1,1), aggregateFunction(2,1), aggregateFunction(3,2)...</code> and so on. </p>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('frp-combineWith',{
+        color:"#067BC2",
+        category: 'frp',
+        defaults: {
+            name: {value:""},
+            topic: {value:""},
+            inputTopics: {value:["inputNodeTopic1", "inputNodeTopic2" ]},
+            func: {value:"function (payload1, payload2) {\n\treturn payload1 + payload2;\n}"}, //TODO: edit this
+            outputs: {value:1},
+            noerr: {value:0,required:true,validate:function(v) { return ((!v) || (v === 0)) ? true : false; }}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "arrow-in.png",
+        label: function() {
+            return this.name;
+        },
+        oneditprepare: function() {
+            var that = this;
+            
+            //turn this into a spinner
+            $( "#node-input-outputs" ).spinner({
+                min:1
+            });
+
+            //initialize Input list
+            $("#node-input-input-container").css('min-height','100px').css('min-width','450px').editableList({
+                addItem: function(container, i, input) {
+                    var inputTopic = input === null? "": input.topic;
+
+                    //create row
+                    var row = $('<div/>').appendTo(container); 
+                    var topicField = $('<input/>',{class:"node-input-input-topic",type:"text", value: inputTopic, style:"margin-left: 5px;"}).appendTo(row);
+                    var finalspan = $('<span/>',{style:"float: right;margin-top: 6px;"}).appendTo(row);
+                    finalspan.append('<span class="node-input-rule-index">'+(i+1)+'</span> ');
+
+                }, 
+                removeItem: function(input) {
+
+                    var topicToDelete = input.topic;
+                    if(input.hasOwnProperty('i')){
+                        inputTopics[input.i] = -1;
+                    } else {
+                        delete inputTopics[input.i];
+                    }
+
+                    var inputList = $("#node-input-input-container").editableList('items');
+                    inputList.each(function(i) {
+                        $(this).find(".node-input-rule-index").html(i+1);
+                        var data = $(this).data('data');
+                    });
+                    
+                },
+                sortable: true,
+                removable: true
+            });
+
+            
+            //populate Input List
+            for (var i=0; i<this.inputTopics.length; i++) {
+                $("#node-input-input-container").editableList('addItem',{topic: this.inputTopics[i], i:i});
+            }
+            
+
+            //initialize funciton editor
+            this.editor = RED.editor.createEditor({
+                id: 'node-input-func-editor',
+                mode: 'ace/mode/javascript',
+                value: $("#node-input-func").val(),
+                globals: {
+                    msg:true,
+                    context:true,
+                    RED: true,
+                    util: true,
+                    flow: true,
+                    global: true,
+                    console: true,
+                    Buffer: true,
+                    setTimeout: true,
+                    clearTimeout: true,
+                    setInterval: true,
+                    clearInterval: true
+                }
+            });
+            this.editor.focus();
+        },
+        oneditsave: function() {
+            //save editor
+            var annot = this.editor.getSession().getAnnotations();
+            this.noerr = 0;
+            $("#node-input-noerr").val(0);
+            for (var k=0; k < annot.length; k++) {
+                //console.log(annot[k].type,":",annot[k].text, "on line", annot[k].row);
+                if (annot[k].type === "error") {
+                    $("#node-input-noerr").val(annot.length);
+                    this.noerr = annot.length;
+                }
+            }
+            $("#node-input-func").val(this.editor.getValue());
+            this.editor.destroy();
+            delete this.editor;
+
+            //save inputs
+            var inputList = $("#node-input-input-container").editableList('items');
+            var node = this;
+            node.inputTopics = [];
+            inputList.each(function(i) {
+                var listItem = $(this);
+                var listTopic = listItem.find(".node-input-input-topic").val();
+                node.inputTopics.push(listTopic);
+            });
+
+        },
+        oneditcancel: function() {
+            this.editor.destroy();
+            delete this.editor;
+        },
+        oneditresize: function(size) {
+            var rows = $("#dialog-form>div:not(.node-text-editor-row)");
+            var height = $("#dialog-form").height();
+            for (var i=0; i<rows.size(); i++) {
+                height -= $(rows[i]).outerHeight(true);
+            }
+            var editorRow = $("#dialog-form>div.node-text-editor-row");
+            height -= (parseInt(editorRow.css("marginTop"))+parseInt(editorRow.css("marginBottom")));
+            $(".node-text-editor").css("height",height+"px");
+            this.editor.resize();
+        }
+    });
+</script>

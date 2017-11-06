@@ -1,0 +1,131 @@
+<script type="text/x-red" data-template-name="frp-map">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name </label>
+        <input type="text" id="node-input-name" data-i18n="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="fa fa-server"></i> Topic </label>
+        <input type="text" id="node-input-topic" data-i18n="Topic">
+    </div>
+    <div class="form-row" style="margin-bottom: 0px;">
+        <label for="node-input-func" style="width: 400px"><i class="fa fa-wrench"></i> Mapping Function </label>
+        <input type="hidden" id="node-input-func" autofocus="autofocus">
+        <input type="hidden" id="node-input-noerr">
+    </div>
+    <div class="form-row node-text-editor-row">
+        <div style="height: 250px; min-height:150px;" class="node-text-editor" id="node-input-func-editor" ></div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-outputs"><i class="fa fa-random"></i> Outputs </label>
+        <input id="node-input-outputs" style="width: 60px;" value="1">
+    </div>
+</script>
+
+A JavaScript function block to run against the messages being received by the node.
+
+The messages are passed in as a JavaScript object called msg.
+
+By convention it will have a msg.payload property containing the body of the message.
+
+The function is expected to return a message object (or multiple message objects), but can choose to return nothing in order to halt a flow.
+
+<script type="text/x-red" data-help-name="frp-map">
+    <p> This node maps <code>msg.payload</code> using the specified mapping function. </p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">various</span><dt>
+        <dd>Data inside <code>msg.payload</code> of the incoming message. Can be renamed to any variable name you prefer in the mapping function</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload<span class="property-type">various</span><dt>
+        <dd>Value returned by the node's mapping function.</dd>
+        <dt>topic<span class="property-type">string</span><dt>
+        <dd>A mandatory property used to identify the origin of a message. This is used by the combine nodes to process multiple inputs, and should not contain spaces or periods.</dd>
+    </dl>
+    
+    <h3>Mapping Function</h3>
+    <p> The <code>frp-map</code> node allows you to define the body of the internal <code>mappingFunction</code>. Naming the function is not necessary as it is already defined internally. </p>
+    <p> The mapping function can only contain <b>one</b> input parameter and is <b>required</b> to return a value, which is stored in the message's <code>payload</code>. </p>
+    <p> <b>Note: </b> Internal functions can be declared as <a href="https://developer.mozilla.org/en-US/docs/web/JavaScript/Reference/Operators/function"> function expressions</a>. </p>
+
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('frp-map',{
+        color:"#D56062",
+        category: 'frp',
+        defaults: {
+            name: {value:""},
+            topic: {value:""},
+            func: {value:"function (payload) {\n\treturn payload;\n}"},
+            outputs: {value:1},
+            noerr: {value:0,required:true,validate:function(v) { return ((!v) || (v === 0)) ? true : false; }}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "arrow-in.png",
+        label: function() {
+            return this.name;
+        },
+        oneditprepare: function() {
+            var that = this;
+            $( "#node-input-outputs" ).spinner({
+                min:1
+            });
+
+            this.editor = RED.editor.createEditor({
+                id: 'node-input-func-editor',
+                mode: 'ace/mode/javascript',
+                value: $("#node-input-func").val(),
+                globals: {
+                    msg:true,
+                    context:true,
+                    RED: true,
+                    util: true,
+                    flow: true,
+                    global: true,
+                    console: true,
+                    Buffer: true,
+                    setTimeout: true,
+                    clearTimeout: true,
+                    setInterval: true,
+                    clearInterval: true
+                }
+            });
+            this.editor.focus();
+        },
+        oneditsave: function() {
+            var annot = this.editor.getSession().getAnnotations();
+            this.noerr = 0;
+            $("#node-input-noerr").val(0);
+            for (var k=0; k < annot.length; k++) {
+                //console.log(annot[k].type,":",annot[k].text, "on line", annot[k].row);
+                if (annot[k].type === "error") {
+                    $("#node-input-noerr").val(annot.length);
+                    this.noerr = annot.length;
+                }
+            }
+            $("#node-input-func").val(this.editor.getValue());
+            this.editor.destroy();
+            delete this.editor;
+        },
+        oneditcancel: function() {
+            this.editor.destroy();
+            delete this.editor;
+        },
+        oneditresize: function(size) {
+            var rows = $("#dialog-form>div:not(.node-text-editor-row)");
+            var height = $("#dialog-form").height();
+            for (var i=0; i<rows.size(); i++) {
+                height -= $(rows[i]).outerHeight(true);
+            }
+            var editorRow = $("#dialog-form>div.node-text-editor-row");
+            height -= (parseInt(editorRow.css("marginTop"))+parseInt(editorRow.css("marginBottom")));
+            $(".node-text-editor").css("height",height+"px");
+            this.editor.resize();
+        }
+    });
+</script>
