@@ -29,6 +29,7 @@
       "frp-map": "frp-map.js",
       "frp-filter": "frp-filter.js",
       "frp-scan": "frp-scan.js",
+      "frp-sampleBy": "frp-sampleBy.js",
       "frp-combineWith": "frp-combineWith.js",
       "frp-combineAsArray": "frp-combineAsArray.js"
     }

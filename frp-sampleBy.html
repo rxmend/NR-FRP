@@ -1,0 +1,98 @@
+<script type="text/x-red" data-template-name="frp-sampleBy">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name </label>
+        <input type="text" id="node-input-name" data-i18n="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="fa fa-server"></i> Topic </label>
+        <input type="text" id="node-input-topic" data-i18n="Topic">
+    </div>
+    <div class="form-row node-input-input-container-row">
+        <label for="node-input-input-container" style="width: 400px"><i class="fa fa-code"></i> Input Topics </label>
+        <ol id="node-input-input-container"></ol>
+    </div>
+    <div class="form-row">
+        <label for="node-input-outputs"><i class="fa fa-random"></i> Outputs </label>
+        <input id="node-input-outputs" style="width: 60px;" value="1">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="frp-sampleBy">
+    <p> This node sends last value of the first input every time second input is sent.</p>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('frp-sampleBy',{
+        color:"#C20942",
+        category: 'frp',
+        defaults: {
+            name: {value:""},
+            topic: {value:""},
+            inputTopics: {value:["valueTopic", "samplerTopic" ]},
+            outputs: {value:1},
+            noerr: {value:0,required:true,validate:function(v) { return ((!v) || (v === 0)) ? true : false; }}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "arrow-in.png",
+        label: function() {
+            return this.name;
+        },
+        oneditprepare: function() {
+            var that = this;
+            
+            //turn this into a spinner
+            $( "#node-input-outputs" ).spinner({
+                min:1
+            });
+
+            //initialize Input list
+            $("#node-input-input-container").css('min-height','100px').css('min-width','450px').editableList({
+                addItem: function(container, i, input) {
+                    var inputTopic = input === null? "": input.topic;
+
+                    //create row
+                    var row = $('<div/>').appendTo(container); 
+                    var topicField = $('<input/>',{class:"node-input-input-topic",type:"text", value: inputTopic, style:"margin-left: 5px;"}).appendTo(row);
+                    var finalspan = $('<span/>',{style:"float: right;margin-top: 6px;"}).appendTo(row);
+                    finalspan.append('<span class="node-input-rule-index">'+(i+1)+'</span> ');
+
+                }, 
+                removeItem: function(input) {
+
+                    var topicToDelete = input.topic;
+                    if(input.hasOwnProperty('i')){
+                        inputTopics[input.i] = -1;
+                    } else {
+                        delete inputTopics[input.i];
+                    }
+
+                    var inputList = $("#node-input-input-container").editableList('items');
+                    inputList.each(function(i) {
+                        $(this).find(".node-input-rule-index").html(i+1);
+                        var data = $(this).data('data');
+                    });
+                    
+                },
+                sortable: true
+            });
+
+            
+            //populate Input List
+            for (var i=0; i<this.inputTopics.length; i++) {
+                $("#node-input-input-container").editableList('addItem',{topic: this.inputTopics[i], i:i});
+            }
+        },
+        oneditsave: function() {
+            //save inputs
+            var inputList = $("#node-input-input-container").editableList('items');
+            var node = this;
+            node.inputTopics = [];
+            inputList.each(function(i) {
+                var listItem = $(this);
+                var listTopic = listItem.find(".node-input-input-topic").val();
+                node.inputTopics.push(listTopic);
+            });
+        }
+    });
+</script>
